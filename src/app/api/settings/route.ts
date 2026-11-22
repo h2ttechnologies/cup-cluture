@@ -1,0 +1,3 @@
+import { NextResponse } from "next/server";
+import { createClient } from "@/lib/supabase/server";
+export async function GET(){try{const client=await createClient();const {data}=await client.from("restaurant_settings").select("key,value").eq("is_public",true);const settings=Object.fromEntries((data||[]).map((row:any)=>[row.key,row.value]));return NextResponse.json({business:settings.business||{},checkout:settings.checkout||{},reservation:settings.reservation||{}});}catch{return NextResponse.json({business:{name:"Cup Culture",tagline:"Just what you needed.",instagram:"@cupcultureindia",whatsapp_number:""},checkout:{tax_rate_percent:0,delivery_fee:0,delivery_minimum:0,service_area_postcodes:[]},reservation:{duration_minutes:90,max_guests:8}});}}

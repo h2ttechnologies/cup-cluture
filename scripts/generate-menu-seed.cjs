@@ -1,0 +1,11 @@
+const fs = require("node:fs");
+const source = fs.readFileSync("src/lib/menu.ts", "utf8");
+const categories = [...source.matchAll(/\{ id: "([^"]+)", name: "([^"]+)", items: \[(.*?)\] \}/gs)].map((match, index) => ({ id: match[1], name: match[2], order: index, items: [...match[3].matchAll(/\["((?:[^"\\]|\\.)*)",(\d+),"(veg|nonveg)"\]/g)].map((item, itemIndex) => ({ name: item[1], price: Number(item[2]), veg: item[3] === "veg", order: itemIndex })) }));
+if (categories.length !== 15) throw new Error(`Expected 15 menu categories, found ${categories.length}`);
+const slug = (value) => value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+const quote = (value) => `'${String(value).replaceAll("'", "''")}'`;
+const categoryRows = categories.map((c) => `(${quote(c.id)},${quote(c.name)},${c.order})`).join(",\n");
+const productRows = categories.flatMap((c) => c.items.map((p) => `(${quote(`${c.id}-${slug(p.name)}`)},${quote(c.id)},${quote(p.name)},${p.price},${p.veg},${["CC SPECIALS","SANDWICH CULTURE","BURGER MANIA","MOMOS ZONE","MILKY MADNESS"].includes(c.name)&&p.order===0},${c.id==="cc-specials"&&[2,4].includes(p.order)},${p.order})`)).join(",\n");
+const sql = `-- Generated from src/lib/menu.ts. Re-run with: node scripts/generate-menu-seed.cjs\ninsert into public.categories(id,name,display_order) values\n${categoryRows}\non conflict(id) do update set name=excluded.name,display_order=excluded.display_order;\n\ninsert into public.products(id,category_id,name,price,is_veg,is_popular,is_new_arrival,display_order) values\n${productRows}\non conflict(id) do update set category_id=excluded.category_id,name=excluded.name,price=excluded.price,is_veg=excluded.is_veg,is_popular=excluded.is_popular,is_new_arrival=excluded.is_new_arrival,display_order=excluded.display_order;\n\ninsert into public.product_addons(id,name,price) values\n('cheese-slice','Cheese Slice',20),('peri-peri-masala','Peri Peri Masala',10),('mayo','Mayo',10),('butter','Butter',15)\non conflict(id) do update set name=excluded.name,price=excluded.price;\n`;
+fs.writeFileSync("supabase/seed.sql", sql);
+console.log(`Generated seed for ${categories.length} categories and ${categories.reduce((n, c) => n + c.items.length, 0)} menu entries.`);
