@@ -6,7 +6,9 @@ import { sendOrderUpdate } from "@/lib/whatsapp";
 
 const orderTypes=["Dine In","Takeaway","Home Delivery"];
 const validPhone=(value:string)=>/^\+?[0-9 ()-]{10,16}$/.test(value);
-export async function POST(request:Request){try{
+export async function POST(request:Request){
+  if(!process.env.NEXT_PUBLIC_SUPABASE_URL||!(process.env.SUPABASE_SERVICE_ROLE_KEY||process.env.SUPABASE_SECRET_KEY))return NextResponse.json({error:"Online ordering isn't connected yet.",code:"orders_offline"},{status:503});
+  try{
   const input=await request.json();const name=String(input.customer?.name||"").trim();const phone=String(input.customer?.phone||"").trim();const email=String(input.customer?.email||"").trim();const type=String(input.type||"");const lines=input.lines;
   if(name.length<2||name.length>100||!validPhone(phone))return NextResponse.json({error:"Enter a name and a valid mobile number."},{status:400});
   if(!orderTypes.includes(type)||!Array.isArray(lines)||!lines.length||lines.length>50)return NextResponse.json({error:"Your order details are incomplete."},{status:400});

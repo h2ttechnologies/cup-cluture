@@ -239,18 +239,21 @@ export function CafeExperience() {
       lines: cart.map((line) => ({ productId: line.product.id, quantity: line.quantity, addons: line.addons.map((addon) => addon.name), instructions: line.instructions })),
     };
     try {
-      let order: OrderReceipt;
-      if (!isSupabaseConfigured || !settings.serverOrders) {
+      let order: OrderReceipt | null = null;
+      // Always ask the server first; it saves to Supabase when it can. Only when the
+      // server says online ordering isn't set up (orders_offline) do we keep the order in this browser.
+      if (isSupabaseConfigured) {
+        const response = await fetch("/api/orders", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(input) });
+        const result = await response.json().catch(() => ({}));
+        if (response.ok) order = result.order;
+        else if (result.code !== "orders_offline") throw new Error(result.error || "We couldn't place your order. Please try again.");
+      }
+      if (!order) {
         const id = `CC-${Date.now().toString().slice(-7)}`;
         order = { id, name: input.customer.name, type: orderType, total: cartTotal };
         const previous = JSON.parse(localStorage.getItem("cc-orders") || "[]");
         localStorage.setItem("cc-orders", JSON.stringify([{ ...order, phone: input.customer.phone, status: "Order Placed", lines: cart, created_at: new Date().toISOString() }, ...previous]));
-        setCustomerOrders((current) => [{ ...order, phone: input.customer.phone, status: "Order Placed", lines: cart }, ...current]);
-      } else {
-        const response = await fetch("/api/orders", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(input) });
-        const result = await response.json();
-        if (!response.ok) throw new Error(result.error || "We couldn't place your order. Please try again.");
-        order = result.order;
+        setCustomerOrders((current) => [{ ...order!, phone: input.customer.phone, status: "Order Placed", lines: cart }, ...current]);
       }
       setOrderReceipt(order); clearCart();
     } catch (cause) { setCheckoutError(cause instanceof Error ? cause.message : "We couldn't place your order."); }
