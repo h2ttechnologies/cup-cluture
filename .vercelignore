@@ -1,0 +1,7 @@
+node_modules
+.next
+.env*
+!.env.example
+.claude
+*.tsbuildinfo
+public/images/Gemini_Generated_Image_*.png

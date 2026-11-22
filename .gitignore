@@ -9,3 +9,5 @@ coverage/
 
 # Large original AI image exports (web copies live in public/images/gallery/)
 public/images/Gemini_Generated_Image_*.png
+
+.vercel
