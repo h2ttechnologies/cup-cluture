@@ -23,6 +23,13 @@ type FlyingItem = { id: number; label: string; startX: number; startY: number; e
 const extraOptions = [{ name: "Cheese Slice", price: 20 }, { name: "Peri Peri Masala", price: 10 }, { name: "Mayo", price: 10 }, { name: "Butter", price: 15 }];
 
 const isVeg = (item: Product) => item.veg;
+/** Browser-only fallback (when online ordering is off): same CC-0001 style, restarting each day. */
+function nextLocalOrderNumber() {
+  const today = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" });
+  let n = 1;
+  try { const saved = JSON.parse(localStorage.getItem("cc-order-counter") || "{}"); n = saved.date === today ? Number(saved.n || 0) + 1 : 1; localStorage.setItem("cc-order-counter", JSON.stringify({ date: today, n })); } catch { /* storage blocked: start at 1 */ }
+  return `CC-${n < 10000 ? String(n).padStart(4, "0") : n}`;
+}
 const supportsExtras = (category: string) => ["QUICK BITES", "BUN BASH", "SANDWICH CULTURE", "BURGER MANIA", "FRIES CRAZE", "MOMOS ZONE", "MAGGI HUB", "CC WRAPS"].includes(category);
 const displayImage = (item: Product) => item.image || seedProducts.find((seed) => seed.id === item.id)?.image || "/images/photo-sheet.png";
 
@@ -249,7 +256,7 @@ export function CafeExperience() {
         else if (result.code !== "orders_offline") throw new Error(result.error || "We couldn't place your order. Please try again.");
       }
       if (!order) {
-        const id = `CC-${Date.now().toString().slice(-7)}`;
+        const id = nextLocalOrderNumber();
         order = { id, name: input.customer.name, type: orderType, total: cartTotal };
         const previous = JSON.parse(localStorage.getItem("cc-orders") || "[]");
         localStorage.setItem("cc-orders", JSON.stringify([{ ...order, phone: input.customer.phone, status: "Order Placed", lines: cart, created_at: new Date().toISOString() }, ...previous]));
