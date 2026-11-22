@@ -2,12 +2,13 @@
 
 import { AnimatePresence, MotionConfig, motion, useInView, useReducedMotion } from "framer-motion";
 import { ArrowDown, ArrowLeft, ArrowRight, ArrowUpRight, Check, ChevronDown, Clock3, Coffee, Heart, Instagram, Leaf, MapPin, Menu as MenuIcon, Minus, Package, Phone, Plus, Search, ShoppingBag, Sparkles, X } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { categories, formatPrice, products as seedProducts, type Product } from "@/lib/menu";
 import { SiteFooter } from "@/components/site-footer";
 import { HeroSection } from "@/components/hero-section";
 import { NewArrivals } from "@/components/new-arrivals";
 import { CafeGallery } from "@/components/cafe-gallery";
+import { AddAgainDialog } from "@/components/add-again-dialog";
 import { CartBar, CartDrawer } from "@/components/cart-drawer";
 import { ContactSection } from "@/components/contact-section";
 import { GOOGLE_REVIEW_COUNT, guestReviews } from "@/lib/reviews";
@@ -105,6 +106,8 @@ export function CafeExperience() {
   const [addedToast, setAddedToast] = useState<AddedToast | null>(null);
   const [flyingItem, setFlyingItem] = useState<FlyingItem | null>(null);
   const [bagPulse, setBagPulse] = useState(0);
+  const [pendingAdd, setPendingAdd] = useState<{ item: Product; source: HTMLElement } | null>(null);
+  const cancelPendingAdd = useCallback(() => setPendingAdd(null), []);
   const [checkoutBusy, setCheckoutBusy] = useState(false);
   const [checkoutError, setCheckoutError] = useState("");
   const [orderReceipt, setOrderReceipt] = useState<OrderReceipt | null>(null);
@@ -199,7 +202,17 @@ export function CafeExperience() {
     if (toastTimerRef.current !== null) window.clearTimeout(toastTimerRef.current);
     toastTimerRef.current = window.setTimeout(() => setAddedToast((current) => current?.id === id ? null : current), 4200);
   }
-  function addProductToBag(item: Product, source: HTMLElement) { addToCart(item); showAddedFeedback(item, source); }
+  /** Quick add from the menu. If the dish is already in the bag, ask first. Returns true when it was added right away. */
+  function addProductToBag(item: Product, source: HTMLElement) {
+    if (cartQuantities[item.id]) { setPendingAdd({ item, source }); return false; }
+    addToCart(item); showAddedFeedback(item, source); return true;
+  }
+  function confirmPendingAdd() {
+    if (!pendingAdd) return;
+    addToCart(pendingAdd.item);
+    showAddedFeedback(pendingAdd.item, pendingAdd.source.isConnected ? pendingAdd.source : undefined);
+    setPendingAdd(null);
+  }
   function addDetailToBag(source?: HTMLElement) {
     if (!detail) return;
     if (!detail.available) return;
@@ -327,6 +340,7 @@ export function CafeExperience() {
 
     <SiteFooter locationName={locationName} locationUrl={locationUrl} openingHours={business.opening_hours || undefined} onPrivacy={()=>setOverlay("privacy")} onTerms={()=>setOverlay("terms")}/>
 
+    <AddAgainDialog item={pendingAdd?.item || null} quantity={pendingAdd ? cartQuantities[pendingAdd.item.id] || 0 : 0} onConfirm={confirmPendingAdd} onCancel={cancelPendingAdd} onViewBag={()=>{setPendingAdd(null);setAddedToast(null);setOrderReceipt(null);setOverlay("cart");}}/>
     <CartBar count={itemCount} subtotal={subtotal} visible={itemCount > 0 && overlay === null} onOpen={()=>{setAddedToast(null);setOrderReceipt(null);setOverlay("cart");}}/>
     <CartDrawer open={overlay==="cart"} hydrated={hydrated} cart={cart} subtotal={subtotal} tax={tax} taxRate={taxRate} deliveryFee={deliveryFee} total={cartTotal} orderType={orderType} tableChoice={tableChoice}
       onChooseService={(type, table)=>{setOrderType(type);setTableChoice(table);setCheckoutError("");setWhatsappError("");}}
@@ -344,7 +358,7 @@ export function CafeExperience() {
   </div></MotionConfig>;
 }
 
-function MenuBoard({ items, sorted, activeLabel, quantities, onOpen, onAdd }: { items: Product[]; sorted: boolean; activeLabel: string; quantities: Record<string, number>; onOpen: (item:Product)=>void; onAdd: (item:Product, source:HTMLElement)=>void }) {
+function MenuBoard({ items, sorted, activeLabel, quantities, onOpen, onAdd }: { items: Product[]; sorted: boolean; activeLabel: string; quantities: Record<string, number>; onOpen: (item:Product)=>void; onAdd: (item:Product, source:HTMLElement)=>boolean|void }) {
   const groups = sorted ? [{ name: "Sorted by price", note: "Every pick on the menu, lined up by price.", items }] : categories.map((category) => ({ name: category.name, note: items.find((item) => item.categoryId === category.id)?.description || "", items: items.filter((item) => item.categoryId === category.id) })).filter((group) => group.items.length);
   const from = Math.min(...items.map((item) => item.price));
   return <div className="cc-board">
@@ -356,12 +370,12 @@ function MenuBoard({ items, sorted, activeLabel, quantities, onOpen, onAdd }: { 
   </div>;
 }
 
-function MenuRow({ item, quantity, onOpen, onAdd }: { item: Product; quantity: number; onOpen: (item:Product)=>void; onAdd: (item:Product, source:HTMLElement)=>void }) {
+function MenuRow({ item, quantity, onOpen, onAdd }: { item: Product; quantity: number; onOpen: (item:Product)=>void; onAdd: (item:Product, source:HTMLElement)=>boolean|void }) {
   const [burst, setBurst] = useState(0);
   const timer = useRef<number | null>(null);
   useEffect(() => () => { if (timer.current !== null) window.clearTimeout(timer.current); }, []);
   function add(event: React.MouseEvent<HTMLButtonElement>) {
-    onAdd(item, event.currentTarget);
+    if (onAdd(item, event.currentTarget) === false) return;
     setBurst(Date.now());
     if (timer.current !== null) window.clearTimeout(timer.current);
     timer.current = window.setTimeout(() => setBurst(0), 1150);

@@ -10,7 +10,7 @@ type Props = {
   imageFor: (item: Product) => string;
   quantities: Record<string, number>;
   onOpen: (item: Product) => void;
-  onAdd: (item: Product, source: HTMLElement) => void;
+  onAdd: (item: Product, source: HTMLElement) => boolean | void;
   onSeeAll: () => void;
 };
 
@@ -35,7 +35,7 @@ export function NewArrivals({ items, imageFor, quantities, onOpen, onAdd, onSeeA
   </section>;
 }
 
-function ArrivalCard({ item, index, image, quantity, onOpen, onAdd }: { item: Product; index: number; image: string; quantity: number; onOpen: (item: Product) => void; onAdd: (item: Product, source: HTMLElement) => void }) {
+function ArrivalCard({ item, index, image, quantity, onOpen, onAdd }: { item: Product; index: number; image: string; quantity: number; onOpen: (item: Product) => void; onAdd: (item: Product, source: HTMLElement) => boolean | void }) {
   const [added, setAdded] = useState(false);
   const timer = useRef<number | null>(null);
   useEffect(() => () => { if (timer.current !== null) window.clearTimeout(timer.current); }, []);
@@ -55,7 +55,7 @@ function ArrivalCard({ item, index, image, quantity, onOpen, onAdd }: { item: Pr
       <div className="cc-na-foot">
         <strong>{formatPrice(item.price)}</strong>
         <motion.button type="button" className={`cc-na-add${added ? " is-added" : ""}`} disabled={!item.available} whileTap={{ scale: .95 }}
-          onClick={(event) => { onAdd(item, event.currentTarget); setAdded(true); if (timer.current !== null) window.clearTimeout(timer.current); timer.current = window.setTimeout(() => setAdded(false), 1400); }}
+          onClick={(event) => { if (onAdd(item, event.currentTarget) === false) return; setAdded(true); if (timer.current !== null) window.clearTimeout(timer.current); timer.current = window.setTimeout(() => setAdded(false), 1400); }}
           aria-label={item.available ? `Add ${item.name} to bag` : `${item.name} is sold out`}>
           <AnimatePresence mode="wait" initial={false}>
             {added
