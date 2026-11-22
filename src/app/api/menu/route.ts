@@ -4,7 +4,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 
 export const dynamic = "force-dynamic";
 export async function GET() {
-  if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) return NextResponse.json({ products: seedProducts });
+  if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !(process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SECRET_KEY)) return NextResponse.json({ products: seedProducts });
   try {
     const client = createAdminClient();
     const { data, error } = await client.from("products").select("id,category_id,name,price,description,image_url,is_veg,is_popular,is_new_arrival,is_available,categories(name)").order("category_id").order("display_order");

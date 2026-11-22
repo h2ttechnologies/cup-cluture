@@ -240,7 +240,7 @@ export function CafeExperience() {
     };
     try {
       let order: OrderReceipt;
-      if (!isSupabaseConfigured) {
+      if (!isSupabaseConfigured || !settings.serverOrders) {
         const id = `CC-${Date.now().toString().slice(-7)}`;
         order = { id, name: input.customer.name, type: orderType, total: cartTotal };
         const previous = JSON.parse(localStorage.getItem("cc-orders") || "[]");
