@@ -25,15 +25,28 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     } catch { setCart([]); setFavorites([]); }
     setHydrated(true);
   }, []);
+  // Keep the menu fresh so changes made in the admin site (sold out, back on, price) show without a reload:
+  // every 10 seconds while the page is visible, and straight away when the customer comes back to the tab.
   useEffect(() => {
-    fetch("/api/menu").then((response) => response.ok ? response.json() : null).then((result) => {
+    const load = () => fetch("/api/menu", { cache: "no-store" }).then((response) => response.ok ? response.json() : null).then((result) => {
       if (Array.isArray(result?.products) && result.products.length) setCatalogProducts(result.products);
     }).catch(() => {});
+    void load();
+    const timer = window.setInterval(() => { if (document.visibilityState === "visible") void load(); }, 10000);
+    const onVisible = () => { if (document.visibilityState === "visible") void load(); };
+    document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("focus", onVisible);
+    return () => { window.clearInterval(timer); document.removeEventListener("visibilitychange", onVisible); window.removeEventListener("focus", onVisible); };
   }, []);
+  // Bag lines keep the latest menu details (availability, price, name) for their item.
+  const liveCart = useMemo(() => cart.map((line) => {
+    const current = catalogProducts.find((item) => item.id === line.product.id);
+    return current ? { ...line, product: { ...line.product, ...current } } : line;
+  }), [cart, catalogProducts]);
   useEffect(() => { if (hydrated) localStorage.setItem("cc-cart", JSON.stringify(cart)); }, [cart, hydrated]);
   useEffect(() => { if (hydrated) localStorage.setItem("cc-favorites", JSON.stringify(favorites)); }, [favorites, hydrated]);
   const value = useMemo<StoreContextValue>(() => ({
-    cart, favorites, hydrated, products: catalogProducts,
+    cart: liveCart, favorites, hydrated, products: catalogProducts,
     addToCart: (product, quantity = 1, addons = [], instructions = "") => setCart((current) => {
       const key = lineKey(product.id, addons, instructions);
       const found = current.find((line) => line.key === key);
@@ -43,7 +56,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     removeFromCart: (key) => setCart((current) => current.filter((line) => line.key !== key)),
     clearCart: () => setCart([]),
     toggleFavorite: (id) => setFavorites((current) => current.includes(id) ? current.filter((item) => item !== id) : [...current, id]),
-  }), [cart, favorites, hydrated, catalogProducts]);
+  }), [liveCart, favorites, hydrated, catalogProducts]);
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;
 }
 export function useStore() { const value = useContext(StoreContext); if (!value) throw new Error("useStore must be used within StoreProvider"); return value; }

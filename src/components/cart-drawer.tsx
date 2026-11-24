@@ -92,7 +92,8 @@ export function CartDrawer(props: CartDrawerProps) {
         <AnimatePresence initial={false}>
           {view === "bag" && <motion.footer key="bag-foot" className="cc-cd-foot" initial={{ y: 30, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 30, opacity: 0 }} transition={{ duration: .35, ease }}>
             <div className="cc-cd-foot-total"><span>Subtotal<small>{props.cart.reduce((sum, line) => sum + line.quantity, 0)} items</small></span><Ticker value={props.subtotal}/></div>
-            <motion.button type="button" className="cc-cd-primary" onClick={() => setStep("details")} whileHover={{ y: -2 }} whileTap={{ scale: .97 }}>Continue to checkout <ArrowRight size={17}/></motion.button>
+            {props.cart.some((line) => !line.product.available) && <p className="cc-cd-soldout-note" role="alert">Some items just sold out. Remove them to continue.</p>}
+            <motion.button type="button" className="cc-cd-primary" disabled={props.cart.some((line) => !line.product.available)} onClick={() => setStep("details")} whileHover={{ y: -2 }} whileTap={{ scale: .97 }}>Continue to checkout <ArrowRight size={17}/></motion.button>
           </motion.footer>}
         </AnimatePresence>
       </motion.aside>
@@ -145,11 +146,12 @@ function BagStep({ cart, onQuantity, onRemove, subtotal, tax, taxRate }: CartDra
 
 function CartLineItem({ line, index, onQuantity, onRemove }: { line: CartLine; index: number; onQuantity: (key: string, delta: number) => void; onRemove: (key: string) => void }) {
   const initials = line.product.name.split(/\s+/).filter((part) => /[A-Za-z]/.test(part[0])).slice(0, 2).map((part) => part[0]).join("").toUpperCase();
-  return <motion.li className="cc-cd-line" layout initial={{ opacity: 0, y: 16, scale: .97 }} animate={{ opacity: 1, y: 0, scale: 1, transition: { delay: Math.min(index, 6) * .05, duration: .35, ease } }} exit={{ opacity: 0, x: 80, height: 0, marginBottom: 0, paddingTop: 0, paddingBottom: 0, transition: { duration: .3, ease } }}>
+  return <motion.li className={`cc-cd-line${line.product.available ? "" : " is-soldout"}`} layout initial={{ opacity: 0, y: 16, scale: .97 }} animate={{ opacity: 1, y: 0, scale: 1, transition: { delay: Math.min(index, 6) * .05, duration: .35, ease } }} exit={{ opacity: 0, x: 80, height: 0, marginBottom: 0, paddingTop: 0, paddingBottom: 0, transition: { duration: .3, ease } }}>
     <span className={`cc-cd-tile ${line.product.veg ? "veg" : "nonveg"}`} aria-hidden="true">{initials}<i/></span>
     <div className="cc-cd-line-copy">
       <small>{line.product.category}</small>
       <strong>{line.product.name}</strong>
+      {!line.product.available && <span className="cc-cd-soldout">Not available right now</span>}
       {line.addons.length > 0 && <span className="cc-cd-line-extra">+ {line.addons.map((item) => item.name).join(", ")}</span>}
       {line.instructions && <span className="cc-cd-line-extra">“{line.instructions}”</span>}
       <div className="cc-cd-line-row">

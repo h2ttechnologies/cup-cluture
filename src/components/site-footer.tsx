@@ -1,7 +1,7 @@
 "use client";
 
 import { motion, useReducedMotion } from "framer-motion";
-import { SWIGGY_URL, ZOMATO_URL } from "@/lib/links";
+import { ADMIN_URL, SWIGGY_URL, ZOMATO_URL } from "@/lib/links";
 import { ArrowRight, ArrowUp, ArrowUpRight, Clock3, Coffee, Instagram, MapPin, Navigation } from "lucide-react";
 
 type FooterProps = { locationName: string; locationUrl: string; openingHours?: string; onPrivacy: () => void; onTerms: () => void };
@@ -57,7 +57,7 @@ export function SiteFooter({ locationName, locationUrl, openingHours, onPrivacy,
           <FooterLink href="#contact">Contact us</FooterLink>
           <FooterLink onClick={onPrivacy}>Privacy policy</FooterLink>
           <FooterLink onClick={onTerms}>Terms & conditions</FooterLink>
-          <FooterLink href="/admin">Café team sign in</FooterLink>
+          <FooterLink href={ADMIN_URL}>Café team sign in</FooterLink>
         </motion.nav>
 
         <motion.div className="cc-ft-col cc-ft-visit" variants={column}>
